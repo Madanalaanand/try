@@ -64,5 +64,3 @@ resource "null_resource" "deployapp" {
     ]
   
 }
-  
-}
