@@ -1,66 +1,47 @@
-# We need to get the vpc id
+data "aws_vpc" "default" {
+   default = true
+ }
 
-data "aws_vpc" "default_vpc" {
-    default = true
-}
-
-# We need to get the subnet id
 data "aws_subnet" "first" {
-    vpc_id = data.aws_vpc.default_vpc.id
-    cidr_block = "172.31.0.0/20"
+  vpc_id = data.aws_vpc.default.id
+  cidr_block = "172.31.0.0/20" 
+
 }
 
-# we need to get the security group id
-
-data "aws_security_group" "open_all" {
-    vpc_id = data.aws_vpc.default_vpc.id
-    name = "openall"
+data "aws_security_group" "openall" {
+   vpc_id = data.aws_vpc.default.id
+   name = "openall"
+ 
 }
 
-
-resource "aws_instance" "web_instance_1" {
-  ami                           = "ami-0892d3c7ee96c0bf7"
-  associate_public_ip_address   = true
-  instance_type                 = "t2.micro"
-  key_name                      = "ec2" 
-  vpc_security_group_ids        = [data.aws_security_group.open_all.id]
-  subnet_id                     = data.aws_subnet.first.id
-
+resource "aws_instance" "instace" {
+  ami           = "ami-0851b76e8b1bce90b" # us-west-2
+  instance_type = "t2.micro"
+  key_name = "ec2"
+  vpc_security_group_ids = [data.aws_security_group.openall.id]
+  subnet_id = data.aws_subnet.first.id
   tags = {
-    Name = "Web"
-  } 
-}
-
-resource "null_resource" "deployapp" {
-
-    triggers = {
-        build_id = var.build_id
-    }
-
-    connection {
+      Name = "ec2_instance"
+  }
+   connection {
       type          = "ssh"
       user          = "ubuntu"
-      private_key   = file("./ec2.pem")
-      host          = aws_instance.web_instance_1.public_ip
+      host          = aws_instance.instace.public_ip
+      private_key   = file("ec2.pem")
     }
-    # install necesssary stuff to make ansible work on the newly cretaed node
     provisioner "remote-exec" {
         inline = [
-          "sudo apt update",
-          "sudo apt install python3 -y",
+           "sudo apt update",
+           "sudo apt install python3 -y"
         ]
     }
 
-    # This provisioner will execute ansible playbook on local machine which will call ansible
-    # playbook to run on the newly create node
-
-    provisioner "local-exec" {
-        command = "ANSIBLE_HOST_KEY_CHECKING=False ansible-playbook -u ubuntu -i '${aws_instance.web_instance_1.public_ip},' --private-key './ec2.pem' sample.yaml"
+     provisioner "local-exec" {
+        command = "ANSIBLE_HOST_KEY_CHECKING=False ansible-playbook -u ubuntu -i '${aws_instance.instace.public_ip},' --private-key './ec2.pem' sample.yaml"
       
     }
-
     depends_on = [
-      aws_instance.web_instance_1
+      aws_instance.instace
     ]
   
 }
